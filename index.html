@@ -23,6 +23,66 @@
 	h1, h2, h3, h4, h5, h6 {
 	     font-family: "LXGW WenKai Screen","JetBrains Mono" !important;
 	}
+    .cache-row {
+            display: flex;
+            margin-bottom: 50px;
+            align-items: center;
+        }
+        
+        .l1-container {
+            margin-right: 100px;
+        }
+        
+        .victim-container {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .cache-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .cache-block {
+            border: 2px solid #000;
+            width: 150px;
+        }
+        
+        .cache-row-header {
+            border-bottom: 2px solid #000;
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .cache-cell {
+            border-bottom: 2px solid #000;
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+        }
+        
+        .cache-cell:last-child {
+            border-bottom: none;
+        }
+        
+        .victim-row {
+            display: flex;
+        }
+        
+        .victim-block {
+            border: 2px solid #000;
+            width: 120px;
+        }
+        
+        .lru {
+            color: #333;
+            font-size: 0.8em;
+        }
 	</style>
 </head>
 <body>
@@ -303,6 +363,89 @@
                         </li>
                     </ul>
                 </section>
+
+                <section data-background="#ffffff">
+                    <h4>Victim Cache 工作示例</h4>
+                    <div class="cache-row fragment fade-in">
+                        <div class="l1-container">
+                            <div class="cache-title">L1 Cache</div>
+                            <div class="cache-block">
+                                <div class="cache-row-header"></div>
+                                <div class="cache-cell">A</div>
+                                <div class="cache-row-header"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="victim-container">
+                            <div class="cache-title">Victim Cache</div>
+                            <div class="victim-row">
+                                <div class="victim-block">
+                                    <div class="cache-cell">C</div>
+                                </div>
+                                <div class="victim-block">
+                                    <div class="cache-cell">D <span class="lru">(LRU)</span></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="cache-description fragment">
+                            <p style="font-size: 0.7em;">初始状态：存储数据A，Victim缓存存储之前被替换的C和D</p>
+                        </div>
+                    </div>
+                    
+                    <!-- 第二行 -->
+                    <div class="cache-row fragment fade-in">
+                        <div class="l1-container">
+                            <div class="cache-title">L1 Cache</div>
+                            <div class="cache-block">
+                                <div class="cache-row-header"></div>
+                                <div class="cache-cell" style="background-color: #f8d7da;">B</div>
+                                <div class="cache-row-header"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="victim-container">
+                            <div class="cache-title">Victim Cache</div>
+                            <div class="victim-row">
+                                <div class="victim-block">
+                                    <div class="cache-cell">C <span class="lru">(LRU)</span></div>
+                                </div>
+                                <div class="victim-block">
+                                    <div class="cache-cell" style="background-color: #d4edda;">A</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="cache-description fragment">
+                            <p style="font-size: 0.7em;">访问B：B映射到地址0，替换A，A被保存到Victim缓存</p>
+                        </div>
+                    </div>
+                    
+                    <!-- 第三行 -->
+                    <div class="cache-row fragment fade-in">
+                        <div class="l1-container">
+                            <div class="cache-title">L1 Cache</div>
+                            <div class="cache-block">
+                                <div class="cache-row-header"></div>
+                                <div class="cache-cell" style="background-color: #d4edda;">A</div>
+                                <div class="cache-row-header"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="victim-container">
+                            <div class="cache-title">Victim Cache</div>
+                            <div class="victim-row">
+                                <div class="victim-block">
+                                    <div class="cache-cell">C <span class="lru">(LRU)</span></div>
+                                </div>
+                                <div class="victim-block">
+                                    <div class="cache-cell" style="background-color: #f8d7da;">B</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="cache-description fragment">
+                            <p style="font-size: 0.7em;">重新访问A：A在Victim缓存中命中，与L1的B交换位置,此后不会再有冲突</p>
+                        </div>
+                    </div>
+                </section>
             </section>
 
             <section>
@@ -333,10 +476,7 @@
                         <p class="fragment highlight-green">Victim Cache大小从1到15条目，收益随容量增加而增大</p>
                     </div>
                 </section>
-                
-             
-
-                <section>
+                <!-- <section>
                     <h3>对大型缓存的效果</h3>
                     <p>针对现代大容量缓存的研究结果：</p>
                     <div class="r-hstack justify-center">
@@ -350,7 +490,7 @@
                         </div>
                         <div data-id="box3" style="background: #222831; width: 300px; height: 200px; margin: 10px; border-radius: 10px; padding: 10px; color: white;">
                             <h4>最佳性价比</h4>
-                            <p class="fragment" style="font-size: 0.8em;">1-2KB大小的Victim Cache</p>
+                            <p class="fragment" style="font-size: 0.8em;">性能 - 面积比：1-2KB Victim 缓存最优，超过此容量后收益递减。</p>
                         </div>
                     </div>
                 </section>
@@ -362,7 +502,7 @@
                         <p>32KB指令缓存：未命中率显著降低</p>
                         <p style="font-size: 0.8em;">例如：m88ksim从0.50%降至0.04%</p>
                     </div>
-                </section>
+                </section> -->
             </section>
 
             <section>
@@ -428,9 +568,12 @@
             <section>
                 <h3>参考资料 📚</h3>
                 <ul style="font-size: 0.7em;">
-                    <li>Jouppi, N. P. (1990). Improving direct-mapped cache performance by the addition of a small fully-associative cache and prefetch buffers. 📖</li>
-                    <li>Hill, Mark D. Aspects of Cache Memory and Instruction Buffer Performance. 📘</li>
-                    <li>Hal Wasserman, Victim-Caching for Large Caches and Modern Workloads. 📗</li>
+                    <li><a href="https://blog.csdn.net/cy413026/article/details/123139530">cache基础与Victim Cache和CAM</a></li>
+                    <li><a href="https://zhuanlan.zhihu.com/p/388751723">Computer Architecture —— Advanced Cache 高级缓存优化（三）</a></li>
+                    <li><a href="https://en.wikipedia.org/wiki/Victim_cache#cite_note-3">wiki 受害者缓存</a></li>
+                    <li><a href="https://ieeexplore.ieee.org/document/134547">Improving direct-mapped cache performance by the addition of a small fully-associative cache and prefetch buffers</a></li>
+                    <li><a href="https://www2.eecs.berkeley.edu/Pubs/TechRpts/1987/5701.html">Aspects of Cache Memory and Instruction Buffer Performance</a></li>
+                    <li><a href="https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=1549f3b4324d7ce2e72040ea506bc81a393f4653">Victim-Caching for Large Caches and Modern Workloads</a></li>
                 </ul>
             </section>
 			<section>
