@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+		<title>Victim Cache 受害者缓存</title>
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+		<link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,opsz,wght@0,18..144,300..900;1,18..144,300..900&display=swap" rel="stylesheet">
+		<link href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-screen-webfont@1.1.0/style.css" rel="stylesheet">
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+		
+		<link rel="stylesheet" href="dist/reset.css">
+		<link rel="stylesheet" href="dist/reveal.css">
+		<link rel="stylesheet" href="dist/theme/dracula.css">
+		<link rel="stylesheet" href="plugin/highlight/monokai.css">
+	</head>
+	<style>
+	.reveal {
+		font-family: "Merriweather", "LXGW WenKai Screen"; 
+	}
+	h1, h2, h3, h4, h5, h6 {
+	     font-family: "LXGW WenKai Screen","JetBrains Mono" !important;
+	}
+	</style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+            <section data-background-gradient="linear-gradient(to bottom, #283b95, #17b2c3)">
+                <h3>Victim Cache</h3>
+                <h3>受害者缓存</h3>
+                <p class="fragment fade-up">一种优化缓存性能的技术</p>
+            </section>
+
+            <section>
+                <h3>目录</h3>
+                <ul>
+                    <li class="fragment fade-in">Introduction</li>
+                    <li class="fragment fade-in">Background</li>
+                    <li class="fragment fade-in">Design</li>
+                    <li class="fragment fade-in">Performance</li>
+                    <li class="fragment fade-in">Conclusion</li>
+                </ul>
+            </section>
+
+            <section>
+                <section>
+                    <h3>Introduction</h3>
+					<div style="margin-top: 20px;">
+                    <span style="color: #f5ff6b;font-size: 0.7em;">Victim Cache(受害者缓存)</span> <span style="color: #6a6e6a;font-size: 0.7em;">是计算机体系结构中的一种缓存优化技术，用于提高缓存命中率和减少访问主存的延迟。</span>
+					</div>
+				</section>
+                
+                <section>
+                    <h3>基本特点</h3>
+                    <ul style="text-align: left;font-size: 0.8em;">
+                        <li class="fragment fade-right">存储从缓存中被替换驱逐的数据块,等待下一次的召唤,或者被踢回主存</li>
+                        <li class="fragment fade-right">通常是全相联(Fully Associative)结构</li>
+                        <li class="fragment fade-right">容量较小，一般只有\(4 \sim 16\)个条目</li>
+                        <li class="fragment fade-right">位于L1缓存旁，可并行或按序访问</li>
+                    </ul>
+                </section>
+				
+                <section data-auto-animate>
+                    <h3>工作流程</h3>
+					<span style="color: #b0b1a5;font-size: 0.8em;">以按序访问为例</span>
+                    <div style="text-align: left;">
+                        <p class="fragment fade-in">首先检查L1 Cache：命中则返回数据</p>
+                    </div>
+                </section>
+                
+                <section data-auto-animate>
+                    <h3>工作流程</h3>
+                    <div style="text-align: center;">
+                        <p>首先检查L1 Cache：命中则返回数据</p>
+                        <p>L1未命中时检查Victim Cache：命中则将数据返回L1再送给处理器，同时L1中被驱逐的数据会存入Victim Cache(Swap)</p>
+                    </div>
+                </section>
+                
+                <section data-auto-animate>
+                    <h3>工作流程</h3>
+                    <div style="text-align: center;">
+                        <p>两级缓存都未命中时，从内存/L2取数据放入L1,如果在该次操作里面，L1 Cache 需要驱逐一个数据，那么这个被驱逐的数据会被存进 Victim Cache 里面。</p>
+                    </div>
+					<div style="text-align: center;">
+						<p>任何被 Victim Cache 驱逐的未修改过的数据，都会写进 Memory 里面或者被丢弃</p>
+					</div>
+					<div style="text-align: center;">
+						<a href="victimcache.html" class="fragment fade-in">动画演示</a>
+					</div>
+                </section>
+            </section>
+
+            <section>
+                <section data-background="linear-gradient(to right, #2d3436, #4A90E2, #48CFAD)">
+                    <h3>技术提出的背景问题</h3>
+                </section>
+                
+                <section>
+                    <h3>流水线广泛使用造成性能下降</h3>
+                    <ul>
+                        <li class="fragment">缓存未命中导致流水线停顿</li>
+                        <li class="fragment">流水线级数越多，未命中传播影响越大
+                            <ul style="font-size: 0.8em;">
+                                <li>5级流水线：停顿500指令周期</li>
+                                <li>10级流水线：停顿1000指令周期</li>
+								<li>多发射停顿时资源闲置</li>
+								<li>分支预测错误时回滚指令数增加(10级流水线需回滚9条指令)</li>
+                            </ul>
+                        </li>
+                    </ul>
+                </section>
+                
+                <section>
+                    <h3>处理器与主存速度差距扩大</h3>
+                    <div class="r-stack">
+                        <ul class="fragment fade-in" data-fragment-index="0">
+                            <li>处理器时钟周期时间远超主存访问速度缩短</li>
+                            <li>RISC等指令集的CPI较低，缓存未命中停顿影响更显著</li>
+                        </ul>
+                    </div>
+                </section>
+                
+                <section  data-auto-animate>
+                    <h3>实际案例</h3>
+					<div style="margin-top: 20px;">
+                        <img src="img/tb1-1.png" alt="缓存未命中影响对比表格" style="width: 100%; max-width: 700px;">
+                    </div>
+                </section>
+				<section  data-auto-animate>
+                    <h3>实际案例</h3>
+					<div style="margin-top: 20px;">
+                        <img src="img/tb1-1.png" alt="缓存未命中影响对比表格" style="width: 80%; max-width: 600px;">
+                    </div>
+                    <table style="font-size: 0.8em;">
+                        <tr>
+                            <th>处理器</th>
+                            <th>缓存未命中影响</th>
+                        </tr>
+                        <tr>
+                            <td>VAX 11/780</td>
+                            <td>缓存未命中仅消耗指令执行时间的60%,所有指令均未命中时，机器性能仅下降40%</td>
+                        </tr>
+                        <tr>
+                            <td>WRT Titan</td>
+                            <td>缓存未命中代价达平均指令时间的8.6倍</td>
+                        </tr>
+                        <tr class="fragment highlight-blue">
+                            <td>未来处理器</td>
+                            <td>主存访问延迟可能超过100个指令周期</td>
+                        </tr>
+                    </table>
+                </section>
+            </section>
+
+            <section>
+                <section data-background-gradient="linear-gradient(to bottom, #3a6073, #16222a)">
+                    <h3>问题分析：缓存未命中的影响</h3>
+                </section>
+                
+                <section>
+                    <h3>缓存架构与测试环境</h3>
+                    <div class="r-hstack justify-center">
+                        <div data-id="l1cache" style="background: #4d7e65; width: 150px; height: 150px; margin: 10px; border-radius: 10px; padding: 10px; color: white; position: relative;">              
+                            <p style="font-size: 0.5em;color: #000000; margin-top: 20px;">4KB<br>16B块<br>直接映射<br>延迟1周期</p>
+							<span style="position: absolute; top: 5px; left: 10px; font-weight: bold; color: #f7f7f431;">L1 Cache</span>
+                        </div>
+                        <div data-id="l2cache" style="background: #b5533c; width: 150px; height: 120px; margin: 10px; border-radius: 10px; padding: 10px; color: white; position: relative;">
+                            <p style="font-size: 0.5em;color: #000000; margin-top: 20px;">1MB<br>128-256B块<br>直接映射<br>延迟4-30周期</p>
+							<span style="position: absolute; top: 5px; left: 10px; font-weight: bold; color: #f7f7f431;">L2 Cache</span>
+                        </div>
+                        <div data-id="memory" style="background: #283b95; width: 180px; height: 120px; margin: 10px; border-radius: 10px; padding: 10px; color: white; position: relative;">
+                            <p style="font-size: 0.5em;color: #000000; margin-top: 20px;">512MB-4GB<br>DRAM<br>访问延迟约为L2的10倍</p>
+							<span style="position: absolute; top: 5px; left: 10px; font-weight: bold; color: #f7f7f431;">Memory</span>
+                        </div>
+                    </div>
+					<img src="img/fig2-1.png" alt="缓存架构与测试环境" style="width: 65%; max-width: 450px;">
+                </section>
+                        
+                <section data-auto-animate>
+                    <h3>测试结果</h3>
+                    <img src="img/tb1-2.png" alt="测试结果" style="width: 100%; max-width: 800px;">
+                </section>
+                
+				<section data-auto-animate>
+                    <h3>测试结果</h3>
+                    <img src="img/tb1-2.png" alt="测试结果" style="width: 70%; max-width: 400px;">
+					<p style="font-size: 0.8em;">一级缓存未命中主要导致指令流水线停顿。</p>
+					<p style="font-size: 0.8em;">二级缓存未命中因程序规模超过缓存容量,如 linpack 的大矩阵运算。</p>
+                </section>
+
+                
+                <section data-auto-animate>
+                    <h3>结果分析</h3>
+					<img src="img/fig2-2.png" alt="测试结果" style="width: 100%; max-width: 500px;">
+                </section>
+
+				<section data-auto-animate>
+                    <h3>结果分析</h3>
+					<img src="img/fig2-2.png" alt="测试结果" style="width: 50%; max-width: 350px;">
+                    <ul style="font-size: 0.7em;">
+                        <li class="fragment highlight-blue">大多数程序因L1缓存未命中损失超过50%潜在性能,除了对数据量要求很高的代码。</li>
+                        <li class="fragment">需要解决的关键问题：
+                            <ol>
+								<li>如何提升L2缓存命中率？</li>
+                                <li>如何减少L1缓存未命中损失？<span class="fragment" style="color: #ebdc0f;">使用 Victim Cache!</span></li>
+                            </ol>
+                        </li>
+                    </ul>
+                </section>
+            </section>
+
+            <section>
+                <section data-background="linear-gradient(to right, #2d3436, #4A90E2, #B22222)">
+                    <h3>Victim Cache 登场</h3>
+                </section>
+                
+                <section>
+                    <h3>缓存未命中的类型</h3>
+                    <ul>
+                        <li class="fragment fade-in">强制未命中：首次访问，无法避免</li>
+                        <li class="fragment fade-in">容量未命中：缓存容量不足</li>
+                        <li class="fragment fade-in-then-semi-out">冲突未命中：不同块映射到相同位置（据文献所述,占40%）</li>
+                    </ul>
+                    <p class="fragment" style="color: rgb(12, 228, 12);">Victim Cache主要解决直接映射L1缓存的冲突未命中问题</p>
+                </section>
+                
+                <section data-auto-animate>
+                    <h3>从 Miss Cache 说起</h3>
+                    <div class="r-stack">
+                        <div style="width: 400px; height: 200px; background-color: rgba(0,0,0,0.2); padding: 20px; border-radius: 10px;">
+                            <ul style="font-size: 0.8em;">
+                                <li>小型全相联缓存，存储L1未命中时从主存加载的数据</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+                
+                
+                <section data-auto-animate>
+                    <h3>从 Miss Cache 说起</h3>
+                    <div class="r-stack">
+                        <div style="width: 400px; height: 300px; background-color: rgba(0,0,0,0.2); padding: 20px; border-radius: 10px;">
+                            <ul style="font-size: 0.8em;">
+                                <li>小型全相联缓存，存储L1未命中时从主存加载的数据</li>
+                                <li>数据来源：L1未命中时取双份数据，一份进L1，一份进未命中缓存</li>
+                            </ul>
+                        </div>
+                    </div>
+					<a href="misscache.html" class="fragment">动画演示</a>
+                </section>
+
+				<section data-auto-animate>
+                    <h3>从 Miss Cache 说起</h3>
+                    <img src="img/fig3-3.png" alt="从 Miss Cache 说起" style="width: 100%; max-width: 500px;">
+                </section>
+
+				<section data-auto-animate>
+                    <h3>Miss Cache 的问题</h3>
+                    <img src="img/fig3-3.png" alt="从 Miss Cache 说起" style="width: 100%; max-width: 300px;">
+					<p style="font-size: 0.7em; color: #978c8c;">未命中缓存对于数据冲突的处理效果远远好于指令冲突，未命中缓存依赖于时间局部性，但对于空间局部性差的程序（如随机访问或长距离跳跃访问），未命中缓存的命中率会迅速下降。例如：
+					指令冲突常发生在不同进程调用中（通常指令隔得又多又远），未命中缓存无法存储所有可能冲突的指令块。
+					数据访问若跨越多个不相关的区域，未命中缓存难以捕获所有冲突块。
+					</p>
+                </section>
+
+				<section>
+                    <h3>Miss Cache 的问题</h3>
+					<ul style="font-size: 0.7em;">
+						<li>同一份数据就会在两个缓存中都存在，造成了数据的重复存储。最少可能只有 1 个,最多可能是全部。</li>
+						<li>未命中缓存的容量通常较小，一般只有 2 - 5 个条目。有限的缓存空间被浪费，未命中缓存无法充分发挥其作用。</li>
+						<li>原本可以用来存储更多不同数据块的空间，被重复的数据占用，导致未命中缓存能够覆盖的不同数据块数量减少</li>
+						<li>例如，在一个有 4 个条目的未命中缓存中，如果有 2 个条目存储了重复的数据，那么实际上只有 2 个条目可以用来存储其他可能有用的数据块，这大大限制了未命中缓存捕获冲突未命中数据的能力。</li>
+					</ul>
+                </section>
+                
+                
+                <section>
+                    <h3>Victim Cache的创新</h3>
+                    <ul style="font-size: 0.7em;">
+                        <li class="fragment fade-up">不再存储从主存加载的数据，而是存储被L1替换的数据</li>
+                        <li class="fragment fade-up">L1未命中但Victim Cache命中时，两者之间的数据块互换</li>
+                        <li class="fragment fade-up">采用LRU替换策略，仅存储被L1淘汰的行</li>
+                        <li class="fragment fade-up">避免了数据重复问题，充分利用缓存空间</li>
+                    </ul>
+                </section>
+                
+                <section>
+                    <div class="r-stack" style="font-size: 0.7em;">
+                        <h3 class="fragment fade-out" data-fragment-index="0">优势示例</h3>
+                        <h3 class="fragment fade-in" data-fragment-index="0">复杂场景效果对比</h3>
+                    </div>
+                    <p style="font-size: 0.7em;">指令引用流在内部循环中调用与循环体冲突的小程序：</p>
+                    <ul style="font-size: 0.7em;">
+                        <li class="fragment highlight-red">未命中缓存：循环开始的未命中被后续未命中覆盖</li>
+                        <li class="fragment highlight-green">Victim Cache：可捕获的冲突数量翻倍
+                            <ul>
+                                <li>一组冲突指令存储在直接映射缓存中</li>
+                                <li>另一组冲突指令存储在受害者缓存中</li>
+                            </ul>
+                        </li>
+                    </ul>
+                </section>
+            </section>
+
+            <section>
+                <section data-background-gradient="linear-gradient(to bottom, #FFDAB9, #ffffff)">
+                    <h3>性能测试结果</h3>
+                </section>
+                
+                <section data-auto-animate>
+                    <h3>Victim Cache大小与性能关系</h3>
+                    <div data-id="performance-relation" style="text-align: left;">
+                        <p class="fragment">L1 Cache越小，Victim Cache收益越大</p>
+                    </div>
+                </section>
+                
+                <section data-auto-animate>
+                    <h3>Victim Cache大小与性能关系</h3>
+                    <div data-id="performance-relation" style="text-align: left;">
+                        <p>L1 Cache越小，Victim Cache收益越大</p>
+                        <p class="fragment">L1 Cache块大小越大，收益越大</p>
+                    </div>
+                </section>
+                
+                <section data-auto-animate>
+                    <h3>Victim Cache大小与性能关系</h3>
+                    <div data-id="performance-relation" style="text-align: left;">
+                        <p>L1 Cache越小，Victim Cache收益越大</p>
+                        <p>L1 Cache块大小越大，收益越大</p>
+                        <p class="fragment highlight-green">Victim Cache大小从1到15条目，收益随容量增加而增大</p>
+                    </div>
+                </section>
+                
+             
+
+                <section>
+                    <h3>对大型缓存的效果</h3>
+                    <p>针对现代大容量缓存的研究结果：</p>
+                    <div class="r-hstack justify-center">
+                        <div data-id="box1" style="background: #00adb5; width: 300px; height: 200px; margin: 10px; border-radius: 10px; padding: 10px; color: white;">
+                            <h4>32KB主缓存</h4>
+                            <p class="fragment" style="font-size: 0.8em;">平均减少35-50%的未命中率</p>
+                        </div>
+                        <div data-id="box2" style="background: #393e46; width: 300px; height: 200px; margin: 10px; border-radius: 10px; padding: 10px; color: white;">
+                            <h4>64KB主缓存</h4>
+                            <p class="fragment" style="font-size: 0.8em;">效果有所减弱<br>冲突未命中比例减少</p>
+                        </div>
+                        <div data-id="box3" style="background: #222831; width: 300px; height: 200px; margin: 10px; border-radius: 10px; padding: 10px; color: white;">
+                            <h4>最佳性价比</h4>
+                            <p class="fragment" style="font-size: 0.8em;">1-2KB大小的Victim Cache</p>
+                        </div>
+                    </div>
+                </section>
+                
+                <section>
+                    <h3>指令缓存vs数据缓存</h3>
+                    <p class="fragment fade-in-then-semi-out">Victim Cache在指令缓存中效果优于数据缓存</p>
+                    <div class="fragment" style="background-color: rgba(0,100,0,0.2); padding: 10px; border-radius: 5px;">
+                        <p>32KB指令缓存：未命中率显著降低</p>
+                        <p style="font-size: 0.8em;">例如：m88ksim从0.50%降至0.04%</p>
+                    </div>
+                </section>
+            </section>
+
+            <section>
+                <section data-background="#34495e">
+                    <h3>优缺点与工业应用</h3>
+                </section>
+                
+                <section>
+                    <h3>Victim Cache的缺点</h3>
+                    <div class="r-stack">
+                        <div class="fragment fade-in-then-out">
+                            <h4>性能权衡</h4>
+                            <ul style="font-size: 0.7em;">
+                                <li>并行访问：增加硬件复杂度和功耗</li>
+                                <li>按序访问：增加缓存系统整体延迟</li>
+                            </ul>
+                        </div>
+                        <div class="fragment fade-in">
+                            <h4>破坏缓存层次包含性属性</h4>
+                            <ul style="font-size: 0.7em;">
+                                <li>Victim Cache可能包含已不在L2的数据</li>
+                                <li>增加数据一致性维护的复杂度</li>
+                                <li>写策略和无效化操作需额外处理</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+                
+                <section>
+                    <h3>工业界应用</h3>
+                    <div class="r-hstack">
+                        <div style="background: rgba(0,0,0,0.2); width: 45%; height: 250px; margin: 10px; padding: 15px; border-radius: 10px;">
+                            <h4>Intel Alder Lake</h4>
+                            <ul style="font-size: 0.7em;">
+                                <li class="fragment">动态调整缓存替换策略</li>
+                                <li class="fragment">L1数据缓存与Victim Cache结合</li>
+                                <li class="fragment">命中率提升约15%</li>
+                            </ul>
+                        </div>
+                        <div style="background: rgba(0,0,0,0.2); width: 45%; height: 250px; margin: 10px; padding: 15px; border-radius: 10px;">
+                            <h4>Arm Zen 3及后续架构</h4>
+                            <ul style="font-size: 0.7em;">
+                                <li class="fragment">通过Victim Cache缓解L3缓存冲突</li>
+                                <li class="fragment">与"Infinity Cache"协同工作</li>
+                                <li class="fragment">提升多线程负载下的缓存利用率</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+            </section>
+
+            <section data-background-gradient="linear-gradient(to bottom, #4b6cb7, #182848)">
+                <h3>总结</h3>
+                <ul style="font-size: 0.7em;">
+                    <li class="fragment fade-up">Victim Cache是缓解直接映射缓存冲突未命中的有效解决方案</li>
+                    <li class="fragment fade-up">通过存储被L1缓存替换的数据，避免了数据重复问题</li>
+                    <li class="fragment fade-up">即使容量很小（4-16条目）也能显著提升性能</li>
+                    <li class="fragment fade-up">在小型L1缓存和指令缓存中效果更为显著</li>
+                    <li class="fragment fade-up">已在现代处理器架构中得到广泛应用</li>
+                </ul>
+            </section>
+
+            <section>
+                <h3>参考资料 📚</h3>
+                <ul style="font-size: 0.7em;">
+                    <li>Jouppi, N. P. (1990). Improving direct-mapped cache performance by the addition of a small fully-associative cache and prefetch buffers. 📖</li>
+                    <li>Hill, Mark D. Aspects of Cache Memory and Instruction Buffer Performance. 📘</li>
+                    <li>Hal Wasserman, Victim-Caching for Large Caches and Modern Workloads. 📗</li>
+                </ul>
+            </section>
+			<section>
+				<h2 style="color: #f5ff6b;">The End</h3>
+			</section> 
+        </div>
+    </div>
+	<script>
+		document.addEventListener('DOMContentLoaded', function() {
+		const scenario1 = document.getElementById('scenario1');
+		const scenario2 = document.getElementById('scenario2');
+		const scenario3 = document.getElementById('scenario3');
+		const resetDemo = document.getElementById('resetDemo');
+		const dataRequest = document.getElementById('dataRequest');
+        const l1Entry1 = document.getElementById('l1-entry1');
+        const l1Entry2 = document.getElementById('l1-entry2');
+        const l1Entry3 = document.getElementById('l1-entry3');
+        const vcEntry1 = document.getElementById('vc-entry1');
+        const vcEntry2 = document.getElementById('vc-entry2');
+        const memData6 = document.getElementById('mem-data6');
+        
+        // 场景1：L1缓存命中
+        scenario1.addEventListener('click', function() {
+            resetState();
+            
+            // 模拟数据请求
+            dataRequest.textContent = "请求数据1";
+            dataRequest.style.background = "#f5ff6b";
+            
+            setTimeout(() => {
+                // L1缓存命中
+                l1Entry1.classList.add('hit');
+                dataRequest.textContent = "数据1 (已命中)";
+                dataRequest.style.background = "#4caf50";
+            }, 800);
+            
+            setTimeout(() => {
+                // 复位
+                l1Entry1.classList.remove('hit');
+            }, 2000);
+        });
+        
+        // 场景2：L1未命中，Victim Cache命中
+        scenario2.addEventListener('click', function() {
+            resetState();
+            
+            // 模拟数据请求
+            dataRequest.textContent = "请求数据4";
+            dataRequest.style.background = "#f5ff6b";
+            
+            setTimeout(() => {
+                // L1缓存未命中
+                l1Entry2.classList.add('miss');
+                dataRequest.textContent = "L1未命中";
+                dataRequest.style.background = "#f44336";
+            }, 800);
+            
+            setTimeout(() => {
+                // Victim Cache命中
+                vcEntry1.classList.add('hit');
+                dataRequest.textContent = "VC命中，数据交换";
+                dataRequest.style.background = "#4caf50";
+            }, 1600);
+            
+            setTimeout(() => {
+                // 数据交换
+                l1Entry2.classList.add('swap-out');
+                vcEntry1.classList.add('swap-in');
+            }, 2400);
+            
+            setTimeout(() => {
+                // 更新显示
+                const temp = l1Entry2.textContent;
+                l1Entry2.textContent = vcEntry1.textContent;
+                vcEntry1.textContent = temp;
+                
+                l1Entry2.classList.remove('miss', 'swap-out');
+                vcEntry1.classList.remove('hit', 'swap-in');
+                
+                dataRequest.textContent = "交换完成，返回数据4";
+            }, 3900);
+        });
+        
+        // 场景3：两级缓存均未命中
+        scenario3.addEventListener('click', function() {
+            resetState();
+            
+            // 模拟数据请求
+            dataRequest.textContent = "请求数据6";
+            dataRequest.style.background = "#f5ff6b";
+            
+            setTimeout(() => {
+                // L1缓存未命中
+                l1Entry3.classList.add('miss');
+                dataRequest.textContent = "L1未命中";
+                dataRequest.style.background = "#f44336";
+            }, 800);
+            
+            setTimeout(() => {
+                // Victim Cache未命中
+                vcEntry1.classList.add('miss');
+                dataRequest.textContent = "VC也未命中";
+                dataRequest.style.background = "#f44336";
+            }, 1600);
+            
+            setTimeout(() => {
+                // 从内存加载
+                memData6.classList.add('hit');
+                dataRequest.textContent = "从内存加载";
+            }, 2400);
+            
+            setTimeout(() => {
+                // 数据移动到L1，L1淘汰数据到VC
+                memData6.classList.add('load-from-memory');
+                l1Entry3.classList.add('swap-out');
+            }, 3200);
+            
+            setTimeout(() => {
+                // 更新显示
+                const l1Evicted = l1Entry3.textContent;
+                l1Entry3.textContent = memData6.textContent;
+                
+                // VC淘汰最旧的数据，接收L1淘汰的数据
+                vcEntry1.textContent = l1Evicted;
+                
+                l1Entry3.classList.remove('miss', 'swap-out');
+                vcEntry1.classList.remove('miss');
+                memData6.classList.remove('hit', 'load-from-memory');
+                
+                dataRequest.textContent = "加载成功，返回数据6";
+                dataRequest.style.background = "#4caf50";
+            }, 5200);
+        });
+        
+        // 重置示范
+        resetDemo.addEventListener('click', resetState);
+        
+        function resetState() {
+            // 清除所有状态类
+            const elements = document.querySelectorAll('.hit, .miss, .moving, .swap-in, .swap-out, .load-from-memory');
+            elements.forEach(el => {
+                el.classList.remove('hit', 'miss', 'moving', 'swap-in', 'swap-out', 'load-from-memory');
+            });
+            
+            // 重置内容
+            l1Entry1.textContent = "数据1";
+            l1Entry2.textContent = "数据2";
+            l1Entry3.textContent = "数据3";
+            vcEntry1.textContent = "数据4";
+            vcEntry2.textContent = "数据5";
+            memData6.textContent = "数据6";
+            
+            // 重置请求块
+            dataRequest.textContent = "数据请求";
+            dataRequest.style.background = "#f5ff6b";
+        }
+    });
+	</script>
+    <script src="dist/reveal.js"></script>
+    <script src="plugin/notes/notes.js"></script>
+    <script src="plugin/markdown/markdown.js"></script>
+    <script src="plugin/highlight/highlight.js"></script>
+    <script src="plugin/math/math.js"></script>
+    <script>
+        Reveal.initialize({
+            theme: 'dracula',
+            hash: true,
+            controls: true,
+            progress: true,
+            center: true,
+            transition: 'slide',
+            plugins: [ RevealMarkdown, RevealHighlight, RevealNotes, RevealMath.KaTeX ]
+        });
+    </script>
+</body>
+</html>

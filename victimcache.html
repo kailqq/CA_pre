@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Victim Cache</title>
+    <style>
+        .reveal {
+            font-family: "Merriweather", "LXGW WenKai Screen"; 
+        }
+    
+        h1, h2, h3, h4, h5, h6 {
+             font-family: "LXGW WenKai Screen","JetBrains Mono" !important;
+        }
+    
+        .cache-animation-container {
+            width: 90%;
+            max-width: 900px;
+            height: auto;
+            min-height: 280px;
+            margin: 20px auto;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            background: linear-gradient(145deg, #2a2a3a, #1a1a2a);
+            border-radius: 12px;
+            padding: 15px;
+            padding-bottom: 50px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        }
+    
+        .cpu, .cache-system, .memory {
+            display: flex;
+            margin-bottom: 15px;
+            position: relative;
+        }
+    
+        .cache-system {
+            display: flex;
+            justify-content: space-around;
+        }
+    
+        .label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            text-align: center;
+            color: #f8f54a;
+            font-size: 0.9em;
+            text-shadow: 0 0 5px rgba(248, 245, 74, 0.3);
+        }
+    
+        .l1-cache, .victim-cache {
+            background: linear-gradient(to bottom, #3a3a48, #2a2a38);
+            padding: 12px;
+            border-radius: 10px;
+            min-width: 120px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    
+        .memory {
+            background: linear-gradient(to bottom, #2c3d7a, #1e2a5a);
+            padding: 12px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(100, 150, 255, 0.2);
+        }
+    
+        .cache-entries, .memory-entries {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+    
+        .cache-entry, .memory-entry {
+            background: rgba(80, 80, 80, 0.5);
+            padding: 6px 10px;
+            border-radius: 6px;
+            text-align: center;
+            transition: all 0.5s ease;
+            font-size: 0.9em;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+        }
+    
+        .request-block {
+            background: linear-gradient(145deg, #f8f54a, #e8d235);
+            color: #333;
+            padding: 10px 15px;
+            border-radius: 8px;
+            text-align: center;
+            margin: 8px auto;
+            font-weight: bold;
+            position: relative;
+            font-size: 0.9em;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            min-width: 150px;
+        }
+    
+        .cpu {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+    
+        /* 添加箭头指示数据流动 */
+        .arrow {
+            position: absolute;
+            width: 40px;
+            height: 20px;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23f8f54a"><path d="M5 12h14M12 5l7 7-7 7"/></svg>');
+            background-repeat: no-repeat;
+            background-position: center;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+    
+        .arrow-down {
+            top: 70px;
+            left: 50%;
+            transform: translateX(-50%) rotate(90deg);
+        }
+    
+        .arrow-up {
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%) rotate(-90deg);
+        }
+    
+        .controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 10px;
+            background: rgba(40, 40, 50, 0.7);
+            padding: 10px 0;
+            border-radius: 0 0 12px 12px;
+            backdrop-filter: blur(5px);
+        }
+    
+        .demo-button {
+            background: linear-gradient(145deg, #3a3a48, #2a2a38);
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.85em;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    
+        .demo-button:hover {
+            background: linear-gradient(145deg, #4a4a58, #3a3a48);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+    
+        .demo-button:active {
+            transform: translateY(1px);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        }
+    
+        /* 动画类 */
+        .hit {
+            background: linear-gradient(145deg, #4caf50, #3d9c40) !important;
+            transform: scale(1.1);
+            box-shadow: 0 0 12px rgba(76, 175, 80, 0.5);
+            border: 1px solid rgba(76, 175, 80, 0.5);
+        }
+    
+        .miss {
+            background: linear-gradient(145deg, #f44336, #e53935) !important;
+            transform: scale(0.9);
+            box-shadow: 0 0 12px rgba(244, 67, 54, 0.5);
+            border: 1px solid rgba(244, 67, 54, 0.5);
+        }
+    
+        .moving {
+            position: absolute;
+            z-index: 10;
+            animation: moveData 1.5s forwards;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+        }
+    
+        .swap-in {
+            animation: swapIn 1.5s forwards;
+            box-shadow: 0 0 15px rgba(76, 175, 80, 0.5);
+        }
+    
+        .swap-out {
+            animation: swapOut 1.5s forwards;
+            box-shadow: 0 0 15px rgba(244, 67, 54, 0.5);
+        }
+    
+        .load-from-memory {
+            animation: loadFromMemory 2s forwards;
+            box-shadow: 0 0 15px rgba(100, 150, 255, 0.7);
+        }
+    
+        @keyframes moveData {
+            0% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(100px, -50px) scale(1.2); }
+            100% { transform: translate(200px, 0) scale(1); }
+        }
+    
+        @keyframes swapIn {
+            0% { transform: translate(0, 0) scale(1); background: rgba(80, 80, 80, 0.7); }
+            25% { transform: translate(50px, -30px) scale(1.1); background: rgba(76, 175, 80, 0.7); }
+            75% { transform: translate(-50px, 30px) scale(1.1); background: rgba(76, 175, 80, 0.7); }
+            100% { transform: translate(0, 0) scale(1); background: rgba(80, 80, 80, 0.7); }
+        }
+    
+        @keyframes swapOut {
+            0% { transform: translate(0, 0) scale(1); background: rgba(80, 80, 80, 0.7); }
+            25% { transform: translate(-50px, 30px) scale(1.1); background: rgba(244, 67, 54, 0.7); }
+            75% { transform: translate(50px, -30px) scale(1.1); background: rgba(244, 67, 54, 0.7); }
+            100% { transform: translate(0, 0) scale(1); background: rgba(80, 80, 80, 0.7); }
+        }
+    
+        @keyframes loadFromMemory {
+            0% { transform: translate(0, 0) scale(1); opacity: 1; }
+            25% { transform: translate(0, -50px) scale(1.1); opacity: 0.8; }
+            50% { transform: translate(-150px, -50px) scale(1.1); opacity: 0.8; }
+            75% { transform: translate(-150px, 0) scale(1.1); opacity: 0.8; }
+            100% { transform: translate(0, 0) scale(1); opacity: 1; }
+        }
+    
+        @keyframes writeBackToMemory {
+            0% { transform: translate(0, 0) scale(1); opacity: 1; }
+            25% { transform: translate(0, 30px) scale(1.1); opacity: 0.8; }
+            50% { transform: translate(150px, 30px) scale(1.1); opacity: 0.8; }
+            75% { transform: translate(150px, 0) scale(1.1); opacity: 0.8; }
+            100% { transform: translate(0, 0) scale(1); opacity: 1; }
+        }
+    
+        .write-back {
+            animation: writeBackToMemory 2s forwards;
+            box-shadow: 0 0 15px rgba(255, 152, 0, 0.7);
+        }
+        
+        /* 添加状态指示器 */
+        .status-indicator {
+            background: rgba(30, 30, 40, 0.7);
+            color: #f8f54a;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            margin-top: 5px;
+            text-align: center;
+            opacity: 0;
+            transition: opacity 0.5s;
+            position: absolute;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        
+        /* 为主要组件添加标题装饰 */
+        .component-title {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .component-title::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #f8f54a, transparent);
+        }
+        
+        /* 响应式调整 */
+        @media (max-width: 768px) {
+            .cache-animation-container {
+                width: 95%;
+                padding: 10px;
+            }
+            
+            .demo-button {
+                padding: 6px 10px;
+                font-size: 0.75em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="cache-animation-container">
+        <div class="controls">
+            <div id="scenario1" class="demo-button">L1命中</div>
+            <div id="scenario2" class="demo-button">L1未命中，VC命中</div>
+            <div id="scenario3" class="demo-button">L1与VC均未命中</div>
+            <div id="resetDemo" class="demo-button">重置</div>
+        </div>
+        <div class="cpu">
+            <div class="label component-title">CPU</div>
+            <div class="request-block" id="dataRequest">数据请求</div>
+        </div>
+        
+        <div class="arrow arrow-down" id="arrow-down"></div>
+        
+        <div class="cache-system">
+            <div class="l1-cache">
+                <div class="label component-title">L1 Cache</div>
+                <div class="cache-entries">
+                    <div class="cache-entry" id="l1-entry1">数据1</div>
+                    <div class="cache-entry" id="l1-entry2">数据2</div>
+                    <div class="cache-entry" id="l1-entry3">数据3</div>
+                </div>
+            </div>
+            <div class="victim-cache">
+                <div class="label component-title">Victim Cache</div>
+                <div class="cache-entries">
+                    <div class="cache-entry" id="vc-entry1">数据4</div>
+                    <div class="cache-entry" id="vc-entry2">数据5</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="arrow arrow-up" id="arrow-up"></div>
+        <div class="status-indicator" id="status-message"></div>
+        
+        <div class="memory">
+            <div class="label component-title">Memory</div>
+            <div class="memory-entries">
+                <div class="memory-entry">数据1</div>
+                <div class="memory-entry">数据2</div>
+                <div class="memory-entry">数据3</div>
+                <div class="memory-entry" id="mem-data6">数据6</div>
+                <div class="memory-entry">数据7</div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+		const scenario1 = document.getElementById('scenario1');
+		const scenario2 = document.getElementById('scenario2');
+		const scenario3 = document.getElementById('scenario3');
+		const resetDemo = document.getElementById('resetDemo');
+		const dataRequest = document.getElementById('dataRequest');
+        const l1Entry1 = document.getElementById('l1-entry1');
+        const l1Entry2 = document.getElementById('l1-entry2');
+        const l1Entry3 = document.getElementById('l1-entry3');
+        const vcEntry1 = document.getElementById('vc-entry1');
+        const vcEntry2 = document.getElementById('vc-entry2');
+        const memData6 = document.getElementById('mem-data6');
+        
+        // 场景1：L1缓存命中
+        scenario1.addEventListener('click', function() {
+            resetState();
+            
+            // 模拟数据请求
+            dataRequest.textContent = "请求数据1";
+            dataRequest.style.background = "linear-gradient(145deg, #f8f54a, #e8d235)";
+            
+            setTimeout(() => {
+                // 显示向下箭头
+                document.getElementById('arrow-down').style.opacity = "1";
+                document.getElementById('status-message').textContent = "正在查找数据...";
+                document.getElementById('status-message').style.opacity = "1";
+            }, 400);
+            
+            setTimeout(() => {
+                // L1缓存命中
+                l1Entry1.classList.add('hit');
+                dataRequest.textContent = "数据1 (已命中)";
+                dataRequest.style.background = "linear-gradient(145deg, #4caf50, #3d9c40)";
+                document.getElementById('status-message').textContent = "L1缓存命中!";
+            }, 800);
+            
+            setTimeout(() => {
+                // 显示向上箭头，表示数据返回
+                document.getElementById('arrow-down').style.opacity = "0";
+                document.getElementById('arrow-up').style.opacity = "1";
+            }, 1200);
+            
+            setTimeout(() => {
+                // 复位
+                l1Entry1.classList.remove('hit');
+                document.getElementById('arrow-up').style.opacity = "0";
+                document.getElementById('status-message').style.opacity = "0";
+            }, 2000);
+        });
+        
+        // 场景2：L1未命中，Victim Cache命中
+        scenario2.addEventListener('click', function() {
+            resetState();
+            
+            // 模拟数据请求
+            dataRequest.textContent = "请求数据4";
+            dataRequest.style.background = "linear-gradient(145deg, #f8f54a, #e8d235)";
+            
+            setTimeout(() => {
+                // L1缓存未命中
+                l1Entry2.classList.add('miss');
+                dataRequest.textContent = "L1未命中";
+                dataRequest.style.background = "linear-gradient(145deg, #f44336, #e53935)";
+            }, 800);
+            
+            setTimeout(() => {
+                // Victim Cache命中
+                vcEntry1.classList.add('hit');
+                dataRequest.textContent = "VC命中，数据交换";
+                dataRequest.style.background = "linear-gradient(145deg, #4caf50, #3d9c40)";
+            }, 1600);
+            
+            setTimeout(() => {
+                // 数据交换
+                l1Entry2.classList.add('swap-out');
+                vcEntry1.classList.add('swap-in');
+            }, 2400);
+            
+            setTimeout(() => {
+                // 更新显示
+                const temp = l1Entry2.textContent;
+                l1Entry2.textContent = vcEntry1.textContent;
+                vcEntry1.textContent = temp;
+                
+                l1Entry2.classList.remove('miss', 'swap-out');
+                vcEntry1.classList.remove('hit', 'swap-in');
+                
+                dataRequest.textContent = "交换完成，返回数据4";
+            }, 3900);
+        });
+        
+        // 场景3：两级缓存均未命中
+        scenario3.addEventListener('click', function() {
+            resetState();
+            
+            // 模拟数据请求
+            dataRequest.textContent = "请求数据6";
+            dataRequest.style.background = "linear-gradient(145deg, #f8f54a, #e8d235)";
+            
+            setTimeout(() => {
+                // L1缓存未命中
+                l1Entry3.classList.add('miss');
+                dataRequest.textContent = "L1未命中";
+                dataRequest.style.background = "linear-gradient(145deg, #f44336, #e53935)";
+            }, 800);
+            
+            setTimeout(() => {
+                // Victim Cache未命中
+                vcEntry1.classList.add('miss');
+                vcEntry2.classList.add('miss');
+                dataRequest.textContent = "VC也未命中";
+                dataRequest.style.background = "linear-gradient(145deg, #f44336, #e53935)";
+            }, 1600);
+            
+            setTimeout(() => {
+                // 从内存加载
+                memData6.classList.add('hit');
+                dataRequest.textContent = "从内存加载";
+            }, 2400);
+            
+            setTimeout(() => {
+                // 数据移动到L1，L1淘汰数据到VC
+                memData6.classList.add('load-from-memory');
+                l1Entry3.classList.add('swap-out');
+            }, 3200);
+            
+            setTimeout(() => {
+                // 从VC中淘汰数据并写回主存
+                vcEntry2.classList.add('write-back');
+                dataRequest.textContent = "VC淘汰数据写回主存";
+            }, 4000);
+            
+            setTimeout(() => {
+                // 更新显示
+                const l1Evicted = l1Entry3.textContent;
+                l1Entry3.textContent = memData6.textContent;
+                
+                // 添加一个新的内存条目或更新现有条目来显示写回的数据
+                const memoryEntries = document.querySelector('.memory-entries');
+                let writtenBackEntry = document.createElement('div');
+                writtenBackEntry.className = 'memory-entry added';
+                writtenBackEntry.textContent = vcEntry2.textContent;
+                
+                // VC淘汰最旧的数据，并接收L1淘汰的数据
+                vcEntry2.textContent = vcEntry1.textContent;
+                vcEntry1.textContent = l1Evicted;
+                
+                // 移除动画类
+                l1Entry3.classList.remove('miss', 'swap-out');
+                vcEntry1.classList.remove('miss');
+                vcEntry2.classList.remove('miss', 'write-back');
+                memData6.classList.remove('hit', 'load-from-memory');
+                
+                // 添加写回的数据到内存（可以是替换或添加）
+                memoryEntries.appendChild(writtenBackEntry);
+                
+                dataRequest.textContent = "加载成功，返回数据6";
+                dataRequest.style.background = "linear-gradient(145deg, #4caf50, #3d9c40)";
+            }, 5800);
+        });
+        
+        // 重置示范
+        resetDemo.addEventListener('click', resetState);
+        
+        function resetState() {
+            // 清除所有状态类
+            const elements = document.querySelectorAll('.hit, .miss, .moving, .swap-in, .swap-out, .load-from-memory, .write-back');
+            elements.forEach(el => {
+                el.classList.remove('hit', 'miss', 'moving', 'swap-in', 'swap-out', 'load-from-memory', 'write-back');
+            });
+            
+            // 重置内容
+            l1Entry1.textContent = "数据1";
+            l1Entry2.textContent = "数据2";
+            l1Entry3.textContent = "数据3";
+            vcEntry1.textContent = "数据4";
+            vcEntry2.textContent = "数据5";
+            memData6.textContent = "数据6";
+            
+            // 重置请求块
+            dataRequest.textContent = "数据请求";
+            dataRequest.style.background = "linear-gradient(145deg, #f8f54a, #e8d235)";
+            
+            // 隐藏箭头和状态消息
+            document.getElementById('arrow-down').style.opacity = "0";
+            document.getElementById('arrow-up').style.opacity = "0";
+            document.getElementById('status-message').style.opacity = "0";
+            
+            // 移除所有添加的内存条目
+            const extraMemEntries = document.querySelectorAll('.memory-entry.added');
+            extraMemEntries.forEach(entry => entry.remove());
+        }
+    });
+    </script>
+</body>
+</html>
